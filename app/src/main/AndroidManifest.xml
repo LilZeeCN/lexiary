@@ -1,0 +1,66 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- 让本 App 内的文本选择菜单也能看到其他 PROCESS_TEXT 应用（含自己） -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
+        </intent>
+    </queries>
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".LookupTileService"
+            android:enabled="@bool/lookup_tile_available"
+            android:exported="true"
+            android:icon="@drawable/ic_lookup_tile"
+            android:label="@string/lookup_tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            tools:targetApi="24">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <activity
+            android:name=".ClipboardActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity="com.lilzee.zee.lookup"
+            android:theme="@style/ZeePopupTheme" />
+
+        <!-- 支持 PROCESS_TEXT 的宿主可在文本选择菜单中显示 Zee。 -->
+        <activity
+            android:name=".ProcessTextActivity"
+            android:exported="true"
+            android:label="Zee"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop"
+            android:theme="@style/ZeePopupTheme">
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

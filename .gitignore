@@ -1,0 +1,27 @@
+# Gradle
+.gradle/
+build/
+
+# Kotlin
+.kotlin/
+
+# Local configuration — 含 sdk.dir 与 deepseek.apiKey，绝不入库
+local.properties
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# macOS
+.DS_Store
+
+# Build artifacts
+*.apk
+*.idsig
+*.aab
+*.hprof
+
+# 真机验证证据与设备备份（含个人阅读内容，只留在本机）
+verification/
