@@ -25,8 +25,8 @@ android {
         applicationId = "com.lilzee.zee"
         minSdk = 23
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.03"
+        versionCode = 5
+        versionName = "1.04"
         buildConfigField("String", "DEEPSEEK_API_KEY", "\"$deepseekKey\"")
     }
 

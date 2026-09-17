@@ -86,6 +86,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -581,6 +582,19 @@ private fun EmptyState() {
     }
 }
 
+/** 从释义开头提取词性，统一转成英文缩写展示（卡片保持纯英文） */
+private fun posBadge(meaning: String): String? {
+    val ascii = Regex("""^\s*(n|v|vt|vi|adj|adv|prep|conj|pron|art|num)\s*[.．]""").find(meaning)
+    if (ascii != null) return ascii.groupValues[1] + "."
+    val trimmed = meaning.trimStart()
+    val table = linkedMapOf(
+        "名词" to "n.", "动词" to "v.", "形容词" to "adj.", "副词" to "adv.",
+        "介词" to "prep.", "连词" to "conj.", "代词" to "pron.", "数词" to "num.",
+    )
+    for ((zh, en) in table) if (trimmed.startsWith(zh)) return en
+    return null
+}
+
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun WordCard(
@@ -613,112 +627,88 @@ private fun WordCard(
                 // 跳过 lookahead 尺寸让动画直接使用真实 placement 修掉错位。
                 .skipToLookaheadSize(),
         ) {
-            Column {
-                // 封面：色块 + 幽灵首字母 + 衬线大字单词
-                Box(
+            // 词版：封面只考英文（词长分档决定高度，形成左右错落的节奏），
+            // 卡身放英文例句作回忆线索；中文释义翻面（详情）才揭晓。
+            val coverHeight = when {
+                entry.word.length <= 5 -> 128.dp
+                entry.word.length <= 9 -> 116.dp
+                else -> 104.dp
+            }
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = coverHeight)
+                    .background(tint)
+            ) {
+                GhostLetter(
+                    word = entry.word,
+                    heroInk = heroInk,
+                    fontSize = 96.sp,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .offset(x = 6.dp, y = 22.dp),
+                )
+                Column(
                     Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 92.dp)
-                        .background(tint)
+                        .align(Alignment.TopStart)
+                        .padding(start = 14.dp, top = 16.dp, end = 40.dp, bottom = 14.dp)
                 ) {
-                    GhostLetter(
-                        word = entry.word,
-                        heroInk = heroInk,
-                        fontSize = 92.sp,
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .offset(x = 6.dp, y = 22.dp),
-                    )
-                    Column(
-                        Modifier
-                            .align(Alignment.TopStart)
-                            .padding(start = 14.dp, top = 16.dp, end = 40.dp, bottom = 14.dp)
-                    ) {
-                        AutoSizeWord(entry.word, color = heroInk)
-                        entry.phonetic?.takeIf { it.isNotBlank() }?.let {
-                            Spacer(Modifier.height(2.dp))
-                            Text(
-                                it,
-                                fontSize = 12.sp,
-                                lineHeight = 15.sp,
-                                maxLines = 2,
-                                color = heroInk.copy(alpha = 0.85f),
-                            )
-                        }
-                    }
-                    IconButton(
-                        onClick = onRequestDelete,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .size(30.dp),
-                    ) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = "删除",
-                            modifier = Modifier.size(15.dp),
-                            tint = heroInk.copy(alpha = 0.55f),
+                    AutoSizeWord(entry.word, color = heroInk, maxFontSize = 28.sp)
+                    entry.phonetic?.takeIf { it.isNotBlank() }?.let {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            it,
+                            fontSize = 12.sp,
+                            lineHeight = 15.sp,
+                            maxLines = 2,
+                            color = heroInk.copy(alpha = 0.85f),
                         )
                     }
                 }
-
-                // 释义 + 例句
-                Column(Modifier.padding(12.dp)) {
-                    Text(
-                        entry.meaning,
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp,
-                        color = MaterialTheme.colorScheme.onSurface,
+                IconButton(
+                    onClick = onRequestDelete,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(30.dp),
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "删除",
+                        modifier = Modifier.size(15.dp),
+                        tint = heroInk.copy(alpha = 0.55f),
                     )
-                    val exampleEn = entry.exampleEn
-                    val exampleZh = entry.exampleZh
-                    if (exampleEn != null || exampleZh != null) {
-                        Spacer(Modifier.height(8.dp))
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                        ) {
-                            Column(Modifier.padding(9.dp)) {
-                                exampleEn?.let {
-                                    Text(
-                                        it,
-                                        fontSize = 11.sp,
-                                        lineHeight = 15.sp,
-                                        fontStyle = FontStyle.Italic,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                    )
-                                }
-                                exampleZh?.let {
-                                    Spacer(Modifier.height(2.dp))
-                                    Text(
-                                        it,
-                                        fontSize = 11.sp,
-                                        lineHeight = 15.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(9.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                }
+            }
+
+            // 引文：原句或 AI 例句（仅英文），长度驱动卡片错落
+            Column(Modifier.padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 11.dp)) {
+                entry.exampleEn?.takeIf { it.isNotBlank() }?.let { example ->
+                    Text(
+                        "“" + example + "”",
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp,
+                        fontStyle = FontStyle.Italic,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.88f),
+                    )
+                }
+                Spacer(Modifier.height(7.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        SimpleDateFormat("MM-dd", Locale.getDefault())
+                            .format(Date(entry.createdAt)),
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.weight(1f))
+                    posBadge(entry.meaning)?.let {
                         Text(
-                            SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
-                                .format(Date(entry.createdAt)),
+                            it,
                             fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
                         )
-                        Spacer(Modifier.size(6.dp))
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = if (dark) tint.copy(alpha = 0.55f) else tint,
-                        ) {
-                            Text(
-                                if (entry.sourceSentence == null) "AI 例句" else "原句",
-                                fontSize = 9.sp,
-                                color = heroInk,
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
-                            )
-                        }
                     }
                 }
             }
