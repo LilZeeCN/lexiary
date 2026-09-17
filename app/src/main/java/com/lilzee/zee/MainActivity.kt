@@ -349,43 +349,51 @@ private enum class TimeFilter(val label: String, val minAgeDays: Int, val maxAge
     }
 }
 
-/** 词典页边注式的筛选标签：纯文字 + 选中词下的赤陶色墨线，无底色不抢卡片 */
+/** 筛选标签栏：四档均分全宽，选中项的赤陶墨线压在发丝基线上——词典版式的导航条 */
 @Composable
 private fun FilterRow(selected: TimeFilter, onSelect: (TimeFilter) -> Unit) {
     val lineColor = MaterialTheme.colorScheme.primary
+    val baseColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.30f)
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, top = 2.dp, bottom = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = 12.dp)
+            .drawBehind {
+                val y = size.height - 0.5.dp.toPx()
+                drawLine(baseColor, Offset(0f, y), Offset(size.width, y), 1.dp.toPx())
+            },
     ) {
         TimeFilter.entries.forEach { f ->
             val sel = f == selected
-            Text(
-                f.label,
-                fontSize = 11.sp,
-                fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Normal,
-                letterSpacing = 0.5.sp,
-                color = if (sel) lineColor else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable { onSelect(f) }
-                    .padding(horizontal = 8.dp, vertical = 5.dp)
+            Box(
+                Modifier
+                    .weight(1f)
+                    .height(40.dp)
                     .drawBehind {
-                        // 选中项：文字正下方一条 2dp 墨线，宽度即文字宽
                         if (sel) {
-                            val stroke = 2.dp.toPx()
+                            val w = size.width * 0.45f
+                            val x0 = (size.width - w) / 2f
+                            val y = size.height - 1.25.dp.toPx()
                             drawRoundRect(
                                 color = lineColor,
-                                topLeft = Offset(0f, size.height - stroke),
-                                size = Size(size.width, stroke),
-                                cornerRadius = CornerRadius(stroke / 2f),
+                                topLeft = Offset(x0, y),
+                                size = Size(w, 2.5.dp.toPx()),
+                                cornerRadius = CornerRadius(1.25.dp.toPx()),
                             )
                         }
-                    },
-            )
+                    }
+                    .clickable { onSelect(f) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    f.label,
+                    fontSize = 11.sp,
+                    fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Normal,
+                    letterSpacing = 0.5.sp,
+                    color = if (sel) lineColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
-        Spacer(Modifier.weight(1f))
     }
 }
 
@@ -556,7 +564,7 @@ private fun Header(count: Int, showAddTile: Boolean, onAddTile: () -> Unit) {
             fontWeight = FontWeight.Bold,
             fontStyle = FontStyle.Italic,
         )
-        Spacer(Modifier.size(10.dp))
+        Spacer(Modifier.weight(1f))
         Surface(
             shape = RoundedCornerShape(50),
             color = MaterialTheme.colorScheme.secondaryContainer,
@@ -568,7 +576,6 @@ private fun Header(count: Int, showAddTile: Boolean, onAddTile: () -> Unit) {
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
             )
         }
-        Spacer(Modifier.weight(1f))
         if (showAddTile) {
             TextButton(onClick = onAddTile) { Text("添加快捷入口", fontSize = 12.sp) }
         }
