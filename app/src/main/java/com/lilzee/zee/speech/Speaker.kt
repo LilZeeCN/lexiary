@@ -23,12 +23,23 @@ object Speaker {
         private set
 
     private var tts: TextToSpeech? = null
+    private var initSettled = false
 
-    /** 提前创建引擎；重复调用无副作用 */
+    /** 提前创建引擎；失败后（如用户后来才装引擎）每次 onResume 自动重试 */
     fun warmup(context: Context) {
-        if (tts != null) return
+        if (ready) return
+        if (tts != null) {
+            if (!initSettled) return // 上一次初始化还没回调，别叠加创建
+            try {
+                tts?.shutdown()
+            } catch (_: Exception) {
+            }
+            tts = null
+        }
+        initSettled = false
         try {
             tts = TextToSpeech(context.applicationContext) { status ->
+                initSettled = true
                 if (status == TextToSpeech.SUCCESS) {
                     val result = try {
                         tts?.setLanguage(Locale.US)
@@ -40,6 +51,7 @@ object Speaker {
                 }
             }
         } catch (_: Exception) {
+            initSettled = true
             ready = false
         }
     }
