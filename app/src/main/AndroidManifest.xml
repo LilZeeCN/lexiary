@@ -7,6 +7,10 @@
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />
         </intent>
+        <!-- Android 11+ 包可见性：不声明则看不到 TTS 引擎服务，发音探测/绑定会静默失败 -->
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
     </queries>
 
     <uses-permission android:name="android.permission.INTERNET" />
