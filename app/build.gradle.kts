@@ -19,14 +19,14 @@ val deepseekKey: String =
 
 android {
     namespace = "com.lilzee.zee"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.lilzee.zee"
         minSdk = 23
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.02"
+        versionCode = 4
+        versionName = "1.03"
         buildConfigField("String", "DEEPSEEK_API_KEY", "\"$deepseekKey\"")
     }
 

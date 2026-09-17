@@ -185,10 +185,19 @@ private fun WordListScreen(
     var selected by remember { mutableStateOf<WordEntry?>(null) }
     var detailEntry by remember { mutableStateOf<WordEntry?>(null) }
     var filter by rememberSaveable { mutableStateOf(TimeFilter.ALL) }
+    // 收起详情时不做共享元素飞行：LazyStaggeredGrid 的 lookahead 布局会让飞行卡
+    // 首帧落在过期坐标上、下一帧才跳回真位（框架级缺陷，BOM 升级也无法根除）。
+    // closing=true 让详情卡的 shared key 与列表卡失配，收起退化为纯交叉淡化。
+    var closing by remember { mutableStateOf(false) }
     val gridState = rememberLazyStaggeredGridState()
     val shown = remember(words, filter) { words.filter { filter.contains(it.createdAt) } }
 
-    BackHandler(enabled = selected != null) { selected = null }
+    fun closeDetail() {
+        closing = true
+        selected = null
+    }
+
+    BackHandler(enabled = selected != null) { closeDetail() }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         SharedTransitionLayout {
@@ -239,6 +248,7 @@ private fun WordListScreen(
                                 onRequestDelete = { pendingDelete = entry },
                                 onOpen = {
                                     detailEntry = entry
+                                    closing = false
                                     selected = entry
                                 },
                             )
@@ -251,20 +261,24 @@ private fun WordListScreen(
                     enter = fadeIn(tween(200)),
                     exit = fadeOut(tween(200)),
                 ) {
+                    val current = detailEntry
                     Box(
                         Modifier
                             .fillMaxSize()
                             .background(Color.Black.copy(alpha = 0.55f))
-                            .pointerInput(Unit) { detectTapGestures { selected = null } },
+                            .pointerInput(Unit) { detectTapGestures { closeDetail() } },
                         contentAlignment = Alignment.Center,
                     ) {
-                        WordDetailCard(
-                            entry = checkNotNull(detailEntry),
-                            sts = this@SharedTransitionLayout,
-                            avScope = this@AnimatedVisibility,
-                            onClose = { selected = null },
-                            onRequestDelete = { pendingDelete = detailEntry },
-                        )
+                        if (current != null) {
+                            WordDetailCard(
+                                entry = current,
+                                sharedKey = "word-${current.id}" + if (closing) "-exit" else "",
+                                sts = this@SharedTransitionLayout,
+                                avScope = this@AnimatedVisibility,
+                                onClose = { closeDetail() },
+                                onRequestDelete = { pendingDelete = current },
+                            )
+                        }
                     }
                 }
             }
@@ -279,7 +293,7 @@ private fun WordListScreen(
             confirmButton = {
                 TextButton(onClick = {
                     onDelete(entry.id)
-                    if (entry.id == selected?.id) selected = null
+                    if (entry.id == selected?.id) closeDetail()
                     pendingDelete = null
                 }) { Text("删除", color = MaterialTheme.colorScheme.primary) }
             },
@@ -593,7 +607,11 @@ private fun WordCard(
                 .sharedBounds(
                     rememberSharedContentState("word-${entry.id}"), avScope,
                     resizeMode = ScaleToBounds(ContentScale.FillBounds),
-                ),
+                )
+                // 水瀑网格的 lookahead 布局对 shared element 支持不完整，
+                // 收起动画会先按过期的 placement 飞行、末帧才跳回正确位置；
+                // 跳过 lookahead 尺寸让动画直接使用真实 placement 修掉错位。
+                .skipToLookaheadSize(),
         ) {
             Column {
                 // 封面：色块 + 幽灵首字母 + 衬线大字单词
@@ -713,6 +731,7 @@ private fun WordCard(
 @Composable
 private fun WordDetailCard(
     entry: WordEntry,
+    sharedKey: String,
     sts: androidx.compose.animation.SharedTransitionScope,
     avScope: androidx.compose.animation.AnimatedVisibilityScope,
     onClose: () -> Unit,
@@ -737,7 +756,7 @@ private fun WordDetailCard(
                 .fillMaxWidth()
                 .padding(26.dp)
                 .sharedBounds(
-                    rememberSharedContentState("word-${entry.id}"), avScope,
+                    rememberSharedContentState(sharedKey), avScope,
                     resizeMode = ScaleToBounds(ContentScale.FillBounds),
                 )
                 // 消费卡片点击，避免冒泡到遮罩关闭
