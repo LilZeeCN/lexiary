@@ -21,6 +21,19 @@ class LookupTileService : TileService() {
         }
     }
 
+    /** 系统级回调：磁贴被添加/移除时记账，主页据此决定是否显示添加引导 */
+    override fun onTileAdded() {
+        super.onTileAdded()
+        getSharedPreferences("zee_prefs", MODE_PRIVATE)
+            .edit().putBoolean("tile_added", true).apply()
+    }
+
+    override fun onTileRemoved() {
+        super.onTileRemoved()
+        getSharedPreferences("zee_prefs", MODE_PRIVATE)
+            .edit().putBoolean("tile_added", false).apply()
+    }
+
     override fun onClick() {
         super.onClick()
         if (isLocked) unlockAndRun(::openLookup) else openLookup()

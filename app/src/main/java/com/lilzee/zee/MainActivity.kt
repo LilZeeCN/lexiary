@@ -113,6 +113,26 @@ class MainActivity : ComponentActivity() {
     private val words = mutableStateOf<List<WordEntry>>(emptyList())
     private val daily = mutableStateOf<Map<String, Int>>(emptyMap())
 
+    /** 已添加磁贴的用户不再显示「添加快捷入口」，头部回归纯标题 */
+    private val showAddTile = mutableStateOf(false)
+
+    private fun refreshShowAddTile() {
+        showAddTile.value = when {
+            Build.VERSION.SDK_INT < 24 -> false
+            Build.VERSION.SDK_INT < 33 -> true // 老系统探测不了，保留文字引导
+            else -> !isTileServiceAdded()
+        }
+    }
+
+    private fun isTileServiceAdded(): Boolean =
+        getSharedPreferences("zee_prefs", MODE_PRIVATE).getBoolean("tile_added", false)
+
+    private fun markTileAdded() {
+        getSharedPreferences("zee_prefs", MODE_PRIVATE)
+            .edit().putBoolean("tile_added", true).apply()
+        showAddTile.value = false
+    }
+
     /** 会话内稳定的乱序排名：进程活着期间同一词的位置不变，重开应用重新洗牌 */
     private val sessionRank = mutableMapOf<Long, Long>()
 
@@ -129,6 +149,7 @@ class MainActivity : ComponentActivity() {
                 WordListScreen(
                     words = words.value,
                     daily = daily.value,
+                    showAddTile = showAddTile.value,
                     onDelete = ::deleteWord,
                     onAddTile = ::addLookupTile,
                 )
@@ -141,6 +162,7 @@ class MainActivity : ComponentActivity() {
         // TTS 引擎在此提前预热：绑定引擎要 1–5 秒，放在列表页空闲期完成，
         // 避免首次打开详情卡点发音时才连接造成掉帧。
         Speaker.warmup(this)
+        refreshShowAddTile()
         val store = WordStore.get(this)
         words.value = shuffled(store.all())
         daily.value = store.dailyCounts()
@@ -160,10 +182,14 @@ class MainActivity : ComponentActivity() {
                 mainExecutor,
             ) { result ->
                 val message = when (result) {
-                    StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED ->
+                    StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED -> {
+                        markTileAdded()
                         "已添加。复制英文后，在控制中心点「Zee 查词」。"
-                    StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED ->
+                    }
+                    StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED -> {
+                        markTileAdded()
                         "已在控制中心，复制英文后点「Zee 查词」即可。"
+                    }
                     else -> "也可以在控制中心的「编辑」中添加「Zee 查词」。"
                 }
                 Toast.makeText(this, message, Toast.LENGTH_LONG).show()
@@ -179,6 +205,7 @@ class MainActivity : ComponentActivity() {
 private fun WordListScreen(
     words: List<WordEntry>,
     daily: Map<String, Int>,
+    showAddTile: Boolean,
     onDelete: (Long) -> Unit,
     onAddTile: () -> Unit,
 ) {
@@ -223,7 +250,7 @@ private fun WordListScreen(
                         .graphicsLayer { alpha = listAlpha.value }
                         .then(if (selected != null) Modifier.clearAndSetSemantics { } else Modifier)
                 ) {
-                    Header(count = words.size, onAddTile = onAddTile)
+                    Header(count = words.size, showAddTile = showAddTile, onAddTile = onAddTile)
                     if (words.isNotEmpty()) {
                         FilterRow(selected = filter, onSelect = { filter = it })
                         HeatmapCard(daily)
@@ -517,7 +544,7 @@ private fun HeatmapCard(counts: Map<String, Int>) {
 }
 
 @Composable
-private fun Header(count: Int, onAddTile: () -> Unit) {
+private fun Header(count: Int, showAddTile: Boolean, onAddTile: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 12.dp),
         verticalAlignment = Alignment.Bottom,
@@ -542,7 +569,7 @@ private fun Header(count: Int, onAddTile: () -> Unit) {
             )
         }
         Spacer(Modifier.weight(1f))
-        if (Build.VERSION.SDK_INT >= 24) {
+        if (showAddTile) {
             TextButton(onClick = onAddTile) { Text("添加快捷入口", fontSize = 12.sp) }
         }
     }
